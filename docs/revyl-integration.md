@@ -24,7 +24,6 @@ All integration code lives under `trailblaze-host/src/main/java/xyz/block/trailb
 Set environment variables:
 
 - `REVYL_API_KEY` – Your Revyl API key (required).
-- `REVYL_BACKEND_URL` – Backend base URL (optional; defaults to production).
 
 ## Architecture
 
