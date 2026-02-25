@@ -25,6 +25,40 @@ Set environment variables:
 
 - `REVYL_API_KEY` – Your Revyl API key (required).
 - `REVYL_BACKEND_URL` – Backend base URL (optional; defaults to production).
+- `REVYL_PLATFORM` – `android` or `ios` (optional; defaults to `android`).
+- `REVYL_APP_URL` – Optional direct app URL to install (`.apk`/`.ipa`).
+- `REVYL_APP_LINK` – Optional deep link to open after launch.
+
+## Quick start via CLI
+
+The open source CLI can now start a Revyl-backed MCP server directly:
+
+```bash
+export REVYL_API_KEY="..."
+./trailblaze mcp --revyl
+```
+
+STDIO mode (for MCP clients that launch Trailblaze as a subprocess):
+
+```bash
+./trailblaze mcp --revyl --stdio
+```
+
+You can also override values per command:
+
+```bash
+./trailblaze mcp --revyl \
+  --revyl-platform android \
+  --revyl-backend-url https://backend.revyl.ai \
+  --revyl-app-url https://example.com/app.apk
+```
+
+## Grounding mode (`--target`)
+
+When Revyl CLI is available, Trailblaze can execute semantic interactions using Revyl's grounding model via
+`--target` arguments (for example, tap/long-press on text or selector-derived intent).
+
+This is useful for demos where you want to show intent-driven interaction instead of only coordinate-based actions.
 
 ## Architecture
 

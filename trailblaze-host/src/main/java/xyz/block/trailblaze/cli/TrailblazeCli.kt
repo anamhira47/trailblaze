@@ -9,8 +9,10 @@ import xyz.block.trailblaze.desktop.LlmTokenStatus
 import xyz.block.trailblaze.desktop.TrailblazeDesktopAppConfig
 import xyz.block.trailblaze.devices.TrailblazeDevicePort
 import xyz.block.trailblaze.devices.TrailblazeDevicePlatform
+import xyz.block.trailblaze.host.revyl.RevylMcpServerFactory
 import xyz.block.trailblaze.llm.RunYamlRequest
 import xyz.block.trailblaze.llm.TrailblazeReferrer
+import xyz.block.trailblaze.logs.server.TrailblazeMcpServer
 import xyz.block.trailblaze.model.DesktopAppRunYamlParams
 import xyz.block.trailblaze.model.DeviceConnectionStatus
 import xyz.block.trailblaze.model.TrailblazeConfig
@@ -480,9 +482,49 @@ class McpCommand : Callable<Int> {
   )
   var stdio: Boolean = false
 
+  @Option(
+    names = ["--revyl"],
+    description = ["Use Revyl cloud devices for MCP tool execution instead of local devices."]
+  )
+  var revyl: Boolean = false
+
+  @Option(
+    names = ["--revyl-api-key"],
+    description = ["Revyl API key. Falls back to REVYL_API_KEY environment variable."]
+  )
+  var revylApiKey: String? = null
+
+  @Option(
+    names = ["--revyl-platform"],
+    description = ["Revyl platform: android or ios (default: android, or REVYL_PLATFORM env var if set)."]
+  )
+  var revylPlatform: String? = null
+
+  @Option(
+    names = ["--revyl-backend-url"],
+    description = ["Revyl backend URL. Falls back to REVYL_BACKEND_URL environment variable."]
+  )
+  var revylBackendUrl: String? = null
+
+  @Option(
+    names = ["--revyl-app-url"],
+    description = ["Optional direct app download URL (.apk/.ipa). Falls back to REVYL_APP_URL."]
+  )
+  var revylAppUrl: String? = null
+
+  @Option(
+    names = ["--revyl-app-link"],
+    description = ["Optional deep link to open after app launch. Falls back to REVYL_APP_LINK."]
+  )
+  var revylAppLink: String? = null
+
   override fun call(): Int {
     // MCP is always headless — no GUI needed
     System.setProperty("java.awt.headless", "true")
+
+    if (revyl) {
+      return runRevylMcp()
+    }
 
     if (stdio) {
       // Capture the current stdout BEFORE redirecting — DesktopLogFileWriter may have
@@ -520,6 +562,74 @@ class McpCommand : Callable<Int> {
     }
 
     return CommandLine.ExitCode.OK
+  }
+
+  private fun runRevylMcp(): Int {
+    if (stdio) {
+      // Keep stdout clean for JSON-RPC before any server initialization logs are emitted.
+      val stdoutForTransport = System.out
+      Console.useStdErr()
+      Console.log("Trailblaze MCP server starting with STDIO transport (Revyl)...")
+
+      val revylServer = createRevylMcpServer() ?: return CommandLine.ExitCode.SOFTWARE
+      installRevylSessionShutdownHook(revylServer)
+      runBlocking {
+        revylServer.startStdioMcpServer(stdoutForTransport)
+      }
+    } else {
+      val revylServer = createRevylMcpServer() ?: return CommandLine.ExitCode.SOFTWARE
+      installRevylSessionShutdownHook(revylServer)
+
+      val port = parent.getEffectivePort()
+      val httpsPort = parent.getEffectiveHttpsPort()
+      Console.log("Trailblaze MCP server starting with HTTP transport on port $port (Revyl)...")
+      revylServer.startStreamableHttpMcpServer(
+        port = port,
+        httpsPort = httpsPort,
+        wait = true,
+      )
+    }
+
+    return CommandLine.ExitCode.OK
+  }
+
+  private fun createRevylMcpServer(): TrailblazeMcpServer? {
+    val apiKey = revylApiKey ?: System.getenv("REVYL_API_KEY")
+    if (apiKey.isNullOrBlank()) {
+      Console.error("REVYL_API_KEY is required when using --revyl.")
+      Console.error("Set REVYL_API_KEY or pass --revyl-api-key.")
+      return null
+    }
+
+    val platform = (revylPlatform ?: System.getenv("REVYL_PLATFORM") ?: "android").lowercase()
+    if (platform !in setOf("android", "ios")) {
+      Console.error("Invalid Revyl platform '$platform'. Expected: android or ios.")
+      return null
+    }
+
+    val backendUrl = revylBackendUrl ?: System.getenv("REVYL_BACKEND_URL")
+    val appUrl = revylAppUrl ?: System.getenv("REVYL_APP_URL")
+    val appLink = revylAppLink ?: System.getenv("REVYL_APP_LINK")
+
+    return RevylMcpServerFactory.create(
+      apiKey = apiKey,
+      platform = platform,
+      backendUrl = backendUrl ?: "https://backend.revyl.ai",
+      appUrl = appUrl,
+      appLink = appLink,
+    )
+  }
+
+  private fun installRevylSessionShutdownHook(server: TrailblazeMcpServer) {
+    Runtime.getRuntime().addShutdownHook(Thread {
+      runBlocking {
+        try {
+          server.mcpBridge.endSession()
+        } catch (_: Exception) {
+          // Best-effort cleanup during process shutdown.
+        }
+      }
+    })
   }
 }
 

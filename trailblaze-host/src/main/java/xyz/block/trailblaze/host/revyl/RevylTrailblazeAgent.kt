@@ -11,18 +11,22 @@ import xyz.block.trailblaze.toolcalls.commands.EraseTextTrailblazeTool
 import xyz.block.trailblaze.toolcalls.commands.HideKeyboardTrailblazeTool
 import xyz.block.trailblaze.toolcalls.commands.InputTextTrailblazeTool
 import xyz.block.trailblaze.toolcalls.commands.LaunchAppTrailblazeTool
+import xyz.block.trailblaze.toolcalls.commands.LongPressElementWithAccessibilityTextTrailblazeTool
+import xyz.block.trailblaze.toolcalls.commands.LongPressOnElementWithTextTrailblazeTool
+import xyz.block.trailblaze.toolcalls.commands.NetworkConnectionTrailblazeTool
 import xyz.block.trailblaze.toolcalls.commands.ObjectiveStatusTrailblazeTool
 import xyz.block.trailblaze.toolcalls.commands.OpenUrlTrailblazeTool
 import xyz.block.trailblaze.toolcalls.commands.PressBackTrailblazeTool
 import xyz.block.trailblaze.toolcalls.commands.PressKeyTrailblazeTool
 import xyz.block.trailblaze.toolcalls.commands.ScrollUntilTextIsVisibleTrailblazeTool
 import xyz.block.trailblaze.toolcalls.commands.SwipeTrailblazeTool
+import xyz.block.trailblaze.toolcalls.commands.TapOnByElementSelector
+import xyz.block.trailblaze.toolcalls.commands.TapOnElementWithAccessiblityTextTrailblazeTool
+import xyz.block.trailblaze.toolcalls.commands.TapOnElementWithTextTrailblazeTool
 import xyz.block.trailblaze.toolcalls.commands.TakeSnapshotTool
 import xyz.block.trailblaze.toolcalls.commands.TapOnElementByNodeIdTrailblazeTool
 import xyz.block.trailblaze.toolcalls.commands.TapOnPointTrailblazeTool
 import xyz.block.trailblaze.toolcalls.commands.WaitForIdleSyncTrailblazeTool
-import xyz.block.trailblaze.toolcalls.commands.NetworkConnectionTrailblazeTool
-import xyz.block.trailblaze.toolcalls.commands.LongPressOnElementWithTextTrailblazeTool
 import xyz.block.trailblaze.toolcalls.commands.memory.MemoryTrailblazeTool
 import xyz.block.trailblaze.toolcalls.getToolNameFromAnnotation
 import xyz.block.trailblaze.utils.ElementComparator
@@ -117,8 +121,12 @@ class RevylTrailblazeAgent(
         is WaitForIdleSyncTrailblazeTool -> handleWaitForIdle(tool)
         is ScrollUntilTextIsVisibleTrailblazeTool -> handleScroll(tool)
         is NetworkConnectionTrailblazeTool -> handleNetworkConnection(tool)
+        is TapOnByElementSelector -> handleTapBySelector(tool)
+        is TapOnElementWithTextTrailblazeTool -> handleTapWithText(tool)
+        is TapOnElementWithAccessiblityTextTrailblazeTool -> handleTapWithAccessibilityText(tool)
         is TapOnElementByNodeIdTrailblazeTool -> handleTapByNodeId(tool)
         is LongPressOnElementWithTextTrailblazeTool -> handleLongPressText(tool)
+        is LongPressElementWithAccessibilityTextTrailblazeTool -> handleLongPressAccessibilityText(tool)
         is ObjectiveStatusTrailblazeTool -> TrailblazeToolResult.Success
         is MemoryTrailblazeTool -> {
           // Memory tools don't need device interaction
@@ -232,6 +240,30 @@ class RevylTrailblazeAgent(
     return TrailblazeToolResult.Success
   }
 
+  private fun handleTapBySelector(tool: TapOnByElementSelector): TrailblazeToolResult {
+    val target = tool.selector.description().ifBlank { "interactive element" }
+    if (tool.longPress) {
+      Console.log("RevylAgent: long press by selector '$target'")
+      revylClient.longPressTarget(target)
+    } else {
+      Console.log("RevylAgent: tap by selector '$target'")
+      revylClient.tapTarget(target)
+    }
+    return TrailblazeToolResult.Success
+  }
+
+  private fun handleTapWithText(tool: TapOnElementWithTextTrailblazeTool): TrailblazeToolResult {
+    Console.log("RevylAgent: tap on element with text '${tool.text}'")
+    revylClient.tapTarget(tool.text)
+    return TrailblazeToolResult.Success
+  }
+
+  private fun handleTapWithAccessibilityText(tool: TapOnElementWithAccessiblityTextTrailblazeTool): TrailblazeToolResult {
+    Console.log("RevylAgent: tap on element with accessibility text '${tool.accessibilityText}'")
+    revylClient.tapTarget(tool.accessibilityText)
+    return TrailblazeToolResult.Success
+  }
+
   private fun handleTapByNodeId(tool: TapOnElementByNodeIdTrailblazeTool): TrailblazeToolResult {
     Console.log("RevylAgent: tap by nodeId ${tool.nodeId} (not directly supported — skipping)")
     return TrailblazeToolResult.Success
@@ -239,7 +271,13 @@ class RevylTrailblazeAgent(
 
   private fun handleLongPressText(tool: LongPressOnElementWithTextTrailblazeTool): TrailblazeToolResult {
     Console.log("RevylAgent: long press on element with text '${tool.text}'")
-    revylClient.tapTarget(tool.text)
+    revylClient.longPressTarget(tool.text)
+    return TrailblazeToolResult.Success
+  }
+
+  private fun handleLongPressAccessibilityText(tool: LongPressElementWithAccessibilityTextTrailblazeTool): TrailblazeToolResult {
+    Console.log("RevylAgent: long press on element with accessibility text '${tool.accessibilityText}'")
+    revylClient.longPressTarget(tool.accessibilityText)
     return TrailblazeToolResult.Success
   }
 }
