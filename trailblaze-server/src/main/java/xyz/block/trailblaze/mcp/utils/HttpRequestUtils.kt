@@ -2,6 +2,7 @@ package xyz.block.trailblaze.mcp.utils
 
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -11,7 +12,7 @@ import xyz.block.trailblaze.util.Console
 
 class HttpRequestUtils(
   private val baseUrl: String,
-) {
+) : AutoCloseable {
 
   // Prepare the HTTP client with timeout configuration
   private val client = HttpClient {
@@ -23,55 +24,43 @@ class HttpRequestUtils(
   }
 
   suspend fun getRequest(urlPath: String): String {
-    return try {
-      val response = client.post("$baseUrl$urlPath") {
-        contentType(ContentType.Application.Json)
-      }
-
-      val responseBody = response.bodyAsText()
-      Console.log("Response Body: $responseBody")
-      Console.log("Response Code: ${response.status.value}")
-      Console.log("Response Message: ${response.status.description}")
-
-      if (response.status.value !in 200..299) {
-        """"Unexpected code ${response.status}""""
-      } else {
-        responseBody
-      }
-    } catch (e: Exception) {
-      val errorMessage = "Exception sending HTTP request to device. Error: ${e.message}"
-      errorMessage
+    val response = client.get("$baseUrl$urlPath") {
+      contentType(ContentType.Application.Json)
     }
+
+    val responseBody = response.bodyAsText()
+    Console.log("Response Body: $responseBody")
+    Console.log("Response Code: ${response.status.value}")
+    Console.log("Response Message: ${response.status.description}")
+
+    if (response.status.value !in 200..299) {
+      throw HttpRpcException("HTTP ${response.status.value}: ${response.status.description}", responseBody)
+    }
+    return responseBody
   }
 
   suspend fun postRequest(urlPath: String, jsonPostBody: String? = null): String {
-    return try {
-      val response = client.post("$baseUrl$urlPath") {
-        contentType(ContentType.Application.Json)
-        jsonPostBody?.let {
-          setBody(jsonPostBody)
-        }
+    val response = client.post("$baseUrl$urlPath") {
+      contentType(ContentType.Application.Json)
+      jsonPostBody?.let {
+        setBody(jsonPostBody)
       }
-
-      val responseBody = response.bodyAsText()
-      Console.log("Response Body: $responseBody")
-      Console.log("Response Code: ${response.status.value}")
-      Console.log("Response Message: ${response.status.description}")
-
-      if (response.status.value !in 200..299) {
-        """"Unexpected code ${response.status}""""
-      } else {
-        responseBody
-      }
-    } catch (e: Exception) {
-      val errorMessage = "Exception sending HTTP request to device. Error: ${e.message}"
-      errorMessage
-    } finally {
-      close()
     }
+
+    val responseBody = response.bodyAsText()
+    Console.log("Response Body: $responseBody")
+    Console.log("Response Code: ${response.status.value}")
+    Console.log("Response Message: ${response.status.description}")
+
+    if (response.status.value !in 200..299) {
+      throw HttpRpcException("HTTP ${response.status.value}: ${response.status.description}", responseBody)
+    }
+    return responseBody
   }
 
-  fun close() {
+  class HttpRpcException(message: String, val responseBody: String?) : Exception(message)
+
+  override fun close() {
     client.close()
   }
 }

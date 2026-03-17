@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,6 +36,28 @@ val ADD_CONTACT_YAML = """
     - step: Verify the contact "Jane Doe" appears in the contacts list
 """.trimIndent()
 
+/** Sample YAML: browse Trailblaze releases on GitHub. */
+val EXPLORE_TRAILBLAZE_RELEASES_YAML = """
+- prompts:
+    - step: Navigate to https://github.com/block/trailblaze
+    - step: Click on the "Releases" section
+    - step: Browse the available releases
+    - step: Click on the latest release to learn more about it
+    - step: Read the release notes and describe what changed
+    - step: Find the download assets listed for the release
+""".trimIndent()
+
+/** Sample YAML: search Wikipedia for a topic and read the summary. */
+val SEARCH_WIKIPEDIA_YAML = """
+- prompts:
+    - step: Navigate to https://en.wikipedia.org
+    - step: Search for "Golden Gate Bridge"
+    - step: Verify the article page for "Golden Gate Bridge" has loaded
+    - step: Read the opening paragraph and confirm it mentions San Francisco
+    - step: Scroll down to find the "History" section
+    - step: Verify the History section is visible on the page
+""".trimIndent()
+
 /** A clickable card used to launch a sample trail. */
 @Composable
 fun QuickStartCard(
@@ -45,7 +67,7 @@ fun QuickStartCard(
   modifier: Modifier = Modifier,
   onClick: () -> Unit,
 ) {
-  ElevatedCard(
+  OutlinedCard(
     onClick = onClick,
     modifier = modifier,
   ) {

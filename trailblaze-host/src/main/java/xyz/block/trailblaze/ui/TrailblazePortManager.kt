@@ -1,16 +1,17 @@
 package xyz.block.trailblaze.ui
 
+import xyz.block.trailblaze.devices.TrailblazeDevicePort
 import xyz.block.trailblaze.ui.models.TrailblazeServerState.SavedTrailblazeAppConfig
 
 /**
  * Manages HTTP/HTTPS port resolution for the Trailblaze server.
  *
  * Ports are resolved with the following precedence:
- * 1. **Runtime overrides** — transient, in-memory values set by CLI flags (`-p`) or
- *    environment variables (`TRAILBLAZE_PORT`). These are never persisted, so multiple
- *    concurrent instances can each run on a different port without racing on the shared
- *    settings file.
- * 2. **Persisted settings** — values saved by the Settings UI (or `trailblaze config`).
+ * 1. **Runtime overrides** — transient, in-memory values set via [setRuntimeOverrides]
+ *    (called by the CLI when `-p` flags or env vars are detected).
+ * 2. **Persisted settings** — non-default values saved by the Settings UI (or `trailblaze config`).
+ * 3. **Environment variables** — `TRAILBLAZE_PORT` / `TRAILBLAZE_HTTPS_PORT`.
+ * 4. **Defaults** — 52525 (HTTP), 8443 (HTTPS).
  *
  * @param persistedConfigProvider Supplies the current [SavedTrailblazeAppConfig] for
  *   reading the persisted port values as a fallback.
@@ -20,18 +21,32 @@ class TrailblazePortManager(
 ) {
 
   // ── Runtime-only overrides (transient, NOT persisted to disk) ──
+  // Bundled into a single volatile field so both ports are read/written atomically.
+  private data class PortOverrides(val httpPort: Int, val httpsPort: Int)
   @Volatile
-  private var runtimeHttpPort: Int? = null
-  @Volatile
-  private var runtimeHttpsPort: Int? = null
+  private var runtimePorts: PortOverrides? = null
 
-  /** The effective HTTP port for this process. */
+  /**
+   * The effective HTTP port for this process.
+   *
+   * Precedence: runtime override → persisted non-default → TRAILBLAZE_PORT env var → default.
+   * This matches [resolveEffectiveHttpPort] so that the OAuth redirect_uri, server binding,
+   * and CLI all agree on the port even when runtime overrides haven't been applied yet.
+   */
   val httpPort: Int
-    get() = runtimeHttpPort ?: persistedConfigProvider().serverPort
+    get() = runtimePorts?.httpPort
+      ?: persistedConfigProvider().serverPort.takeIf { it != TrailblazeDevicePort.TRAILBLAZE_DEFAULT_HTTP_PORT }
+      ?: resolveHttpPortFromEnvOrDefault()
 
-  /** The effective HTTPS port for this process. */
+  /**
+   * The effective HTTPS port for this process.
+   *
+   * Precedence: runtime override → persisted non-default → TRAILBLAZE_HTTPS_PORT env var → default.
+   */
   val httpsPort: Int
-    get() = runtimeHttpsPort ?: persistedConfigProvider().serverHttpsPort
+    get() = runtimePorts?.httpsPort
+      ?: persistedConfigProvider().serverHttpsPort.takeIf { it != TrailblazeDevicePort.TRAILBLAZE_DEFAULT_HTTPS_PORT }
+      ?: resolveHttpsPortFromEnvOrDefault()
 
   /** The effective server base URL for this process (e.g. `http://localhost:52525`). */
   val serverUrl: String
@@ -39,7 +54,7 @@ class TrailblazePortManager(
 
   /** Whether a runtime (non-persisted) override is currently active. */
   val hasRuntimeOverride: Boolean
-    get() = runtimeHttpPort != null || runtimeHttpsPort != null
+    get() = runtimePorts != null
 
   /**
    * Sets transient port overrides for this process only.
@@ -48,7 +63,45 @@ class TrailblazePortManager(
    * each keep their own ports without interfering with each other.
    */
   fun setRuntimeOverrides(httpPort: Int, httpsPort: Int) {
-    runtimeHttpPort = httpPort
-    runtimeHttpsPort = httpsPort
+    runtimePorts = PortOverrides(httpPort, httpsPort)
+  }
+ 
+  companion object {
+    const val HTTP_PORT_ENV_VAR = "TRAILBLAZE_PORT"
+    const val HTTPS_PORT_ENV_VAR = "TRAILBLAZE_HTTPS_PORT"
+ 
+    fun resolveEffectiveHttpPort(
+      savedConfigProvider: (() -> SavedTrailblazeAppConfig?)? = null,
+    ): Int {
+      val savedConfig = savedConfigProvider?.invoke()
+      if (savedConfig != null &&
+        savedConfig.serverPort != TrailblazeDevicePort.TRAILBLAZE_DEFAULT_HTTP_PORT
+      ) {
+        return savedConfig.serverPort
+      }
+      return resolveHttpPortFromEnvOrDefault()
+    }
+ 
+    fun resolveEffectiveHttpsPort(
+      savedConfigProvider: (() -> SavedTrailblazeAppConfig?)? = null,
+    ): Int {
+      val savedConfig = savedConfigProvider?.invoke()
+      if (savedConfig != null &&
+        savedConfig.serverHttpsPort != TrailblazeDevicePort.TRAILBLAZE_DEFAULT_HTTPS_PORT
+      ) {
+        return savedConfig.serverHttpsPort
+      }
+      return resolveHttpsPortFromEnvOrDefault()
+    }
+ 
+    fun resolveHttpPortFromEnvOrDefault(): Int {
+      return System.getenv(HTTP_PORT_ENV_VAR)?.toIntOrNull()
+        ?: TrailblazeDevicePort.TRAILBLAZE_DEFAULT_HTTP_PORT
+    }
+ 
+    fun resolveHttpsPortFromEnvOrDefault(): Int {
+      return System.getenv(HTTPS_PORT_ENV_VAR)?.toIntOrNull()
+        ?: TrailblazeDevicePort.TRAILBLAZE_DEFAULT_HTTPS_PORT
+    }
   }
 }

@@ -8,7 +8,6 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 plugins {
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.jetbrains.compose.multiplatform)
-  alias(libs.plugins.compose.hot.reload)
   alias(libs.plugins.kotlin.multiplatform)
   alias(libs.plugins.kotlin.serialization)
 }
@@ -47,15 +46,15 @@ kotlin {
   sourceSets {
     commonMain.dependencies {
       api(project(":trailblaze-models"))
-      api(compose.runtime)
-      api(compose.foundation)
-      api(compose.material3)
-      api(compose.ui)
+      api(libs.compose.runtime)
+      api(libs.compose.foundation)
+      api(libs.compose.material3)
+      api(libs.compose.ui)
 
       implementation(libs.multiplatform.markdown.renderer)
       implementation(libs.multiplatform.markdown.renderer.m3)
-      implementation(compose.components.resources)
-      implementation(compose.components.uiToolingPreview)
+      implementation(libs.compose.components.resources)
+      implementation(libs.compose.components.ui.tooling.preview)
       implementation(libs.material.icons.extended)
       implementation(libs.kotlinx.serialization.core)
       implementation(libs.kotlinx.serialization.json)
@@ -85,8 +84,8 @@ kotlin {
       implementation(project(":trailblaze-server"))
       implementation(project(":trailblaze-report"))
       implementation(libs.ktor.server.core)
-      implementation(compose.uiTooling)
-      implementation(compose.preview)
+      implementation(libs.compose.ui.tooling)
+      implementation(libs.compose.ui.tooling.preview)
     }
   }
 }

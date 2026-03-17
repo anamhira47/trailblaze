@@ -13,6 +13,8 @@ import xyz.block.trailblaze.android.maestro.LoggingDriver
 import xyz.block.trailblaze.api.ScreenState
 import xyz.block.trailblaze.devices.TrailblazeDeviceClassifier
 import xyz.block.trailblaze.devices.TrailblazeDeviceId
+import xyz.block.trailblaze.devices.TrailblazeDevicePlatform
+import xyz.block.trailblaze.devices.TrailblazeDriverType
 import xyz.block.trailblaze.host.devices.TrailblazeConnectedDevice
 import xyz.block.trailblaze.host.devices.TrailblazeDeviceService
 import xyz.block.trailblaze.host.screenstate.HostMaestroDriverScreenState
@@ -22,6 +24,7 @@ import xyz.block.trailblaze.logs.model.TraceId
 import xyz.block.trailblaze.maestro.OrchestraRunner
 import xyz.block.trailblaze.model.TrailblazeHostAppTarget
 import xyz.block.trailblaze.toolcalls.TrailblazeToolResult
+import xyz.block.trailblaze.viewhierarchy.NativeViewHierarchyDetail
 import java.io.File
 import xyz.block.trailblaze.util.Console
 
@@ -41,11 +44,18 @@ class MaestroHostRunnerImpl(
    */
   appTarget: TrailblazeHostAppTarget? = null,
   private val deviceClassifiers: List<TrailblazeDeviceClassifier> = emptyList(),
+  private val pendingViewHierarchyDetailsProvider: (() -> Set<NativeViewHierarchyDetail>)? = null,
 ) : MaestroHostRunner {
   val connectedDevice: TrailblazeConnectedDevice by lazy {
+    val hostDriverType = when (trailblazeDeviceId.trailblazeDevicePlatform) {
+      TrailblazeDevicePlatform.ANDROID -> TrailblazeDriverType.ANDROID_HOST
+      TrailblazeDevicePlatform.IOS -> TrailblazeDriverType.IOS_HOST
+      TrailblazeDevicePlatform.WEB -> error("Web tests do not use MaestroHostRunnerImpl")
+    }
     TrailblazeDeviceService.getConnectedDevice(
       trailblazeDeviceId = trailblazeDeviceId,
-      appTarget = appTarget
+      driverType = hostDriverType,
+      appTarget = appTarget,
     ) ?: error(
       "No connected device matching $trailblazeDeviceId found.",
     )
@@ -62,10 +72,14 @@ class MaestroHostRunnerImpl(
   override val screenStateProvider: () -> ScreenState = {
     callCount++
     Console.log("screenStateProvider call count: $callCount")
+    // Consume pending view hierarchy details (one-shot, auto-reverts)
+    val pendingDetails = pendingViewHierarchyDetailsProvider?.invoke() ?: emptySet()
     HostMaestroDriverScreenState(
       maestroDriver = loggingDriver,
       setOfMarkEnabled = setOfMarkEnabled,
       deviceClassifiers = deviceClassifiers,
+      fullHierarchy = NativeViewHierarchyDetail.FULL_HIERARCHY in pendingDetails,
+      includeOffscreen = NativeViewHierarchyDetail.OFFSCREEN_ELEMENTS in pendingDetails,
     )
   }
 
