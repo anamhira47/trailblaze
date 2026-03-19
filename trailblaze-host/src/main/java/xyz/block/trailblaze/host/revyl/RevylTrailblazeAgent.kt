@@ -67,7 +67,7 @@ class RevylTrailblazeAgent(
     for (tool in tools) {
       executed.add(tool)
       val result = executeTool(tool, screenStateProvider)
-      if (result != TrailblazeToolResult.Success) {
+      if (result !is TrailblazeToolResult.Success) {
         return RunTrailblazeToolsResult(
           inputTools = tools,
           executedTools = executed,
@@ -79,7 +79,7 @@ class RevylTrailblazeAgent(
     return RunTrailblazeToolsResult(
       inputTools = tools,
       executedTools = executed,
-      result = TrailblazeToolResult.Success,
+      result = TrailblazeToolResult.Success(),
     )
   }
 
@@ -98,11 +98,11 @@ class RevylTrailblazeAgent(
           } else {
             cliClient.tap(tool.x, tool.y)
           }
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
         is InputTextTrailblazeTool -> {
           cliClient.typeText(tool.text)
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
         is SwipeTrailblazeTool -> {
           val direction = when (tool.direction) {
@@ -113,60 +113,60 @@ class RevylTrailblazeAgent(
             else -> "down"
           }
           cliClient.swipe(direction)
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
         is LaunchAppTrailblazeTool -> {
           cliClient.launchApp(tool.appId)
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
         is EraseTextTrailblazeTool -> {
           cliClient.clearText()
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
         is HideKeyboardTrailblazeTool -> {
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
         is PressBackTrailblazeTool -> {
           cliClient.back()
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
         is PressKeyTrailblazeTool -> {
           cliClient.pressKey(tool.keyCode.name)
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
         is OpenUrlTrailblazeTool -> {
           cliClient.navigate(tool.url)
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
         is TakeSnapshotTool -> {
           cliClient.screenshot()
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
         is WaitForIdleSyncTrailblazeTool -> {
           Thread.sleep(1000)
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
         is ScrollUntilTextIsVisibleTrailblazeTool -> {
           cliClient.swipe("down")
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
         is NetworkConnectionTrailblazeTool -> {
           Console.log("RevylAgent: network toggle not supported on cloud devices")
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
         is TapOnElementByNodeIdTrailblazeTool -> {
           cliClient.tapTarget("element with node id ${tool.nodeId}")
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
         is LongPressOnElementWithTextTrailblazeTool -> {
           cliClient.longPress(tool.text)
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
-        is ObjectiveStatusTrailblazeTool -> TrailblazeToolResult.Success
-        is MemoryTrailblazeTool -> TrailblazeToolResult.Success
+        is ObjectiveStatusTrailblazeTool -> TrailblazeToolResult.Success()
+        is MemoryTrailblazeTool -> TrailblazeToolResult.Success()
         else -> {
           Console.log("RevylAgent: unsupported tool ${tool::class.simpleName}")
-          TrailblazeToolResult.Success
+          TrailblazeToolResult.Success()
         }
       }
     } catch (e: Exception) {

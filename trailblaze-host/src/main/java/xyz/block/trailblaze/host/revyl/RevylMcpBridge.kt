@@ -3,9 +3,11 @@ package xyz.block.trailblaze.host.revyl
 import xyz.block.trailblaze.api.ScreenState
 import xyz.block.trailblaze.devices.TrailblazeConnectedDeviceSummary
 import xyz.block.trailblaze.devices.TrailblazeDeviceId
+import xyz.block.trailblaze.mcp.AgentImplementation
 import xyz.block.trailblaze.mcp.TrailblazeMcpBridge
 import xyz.block.trailblaze.model.TrailblazeHostAppTarget
 import xyz.block.trailblaze.toolcalls.TrailblazeTool
+import xyz.block.trailblaze.toolcalls.TrailblazeToolResult
 import xyz.block.trailblaze.toolcalls.getToolNameFromAnnotation
 import xyz.block.trailblaze.toolcalls.commands.BooleanAssertionTrailblazeTool
 import xyz.block.trailblaze.toolcalls.commands.StringEvaluationTrailblazeTool
@@ -46,7 +48,7 @@ class RevylMcpBridge(
     return setOf(TrailblazeHostAppTarget.DefaultTrailblazeHostAppTarget)
   }
 
-  override suspend fun runYaml(yaml: String, startNewSession: Boolean): String {
+  override suspend fun runYaml(yaml: String, startNewSession: Boolean, agentImplementation: AgentImplementation): String {
     Console.log("RevylMcpBridge: runYaml not supported for CLI-based Revyl (use tool calls instead)")
     return "unsupported"
   }
@@ -76,10 +78,10 @@ class RevylMcpBridge(
     )
 
     return when (result.result) {
-      is xyz.block.trailblaze.toolcalls.TrailblazeToolResult.Success ->
+      is TrailblazeToolResult.Success ->
         "Successfully executed $toolName on Revyl cloud device."
-      is xyz.block.trailblaze.toolcalls.TrailblazeToolResult.Error ->
-        "Error executing $toolName: ${(result.result as xyz.block.trailblaze.toolcalls.TrailblazeToolResult.Error).errorMessage}"
+      is TrailblazeToolResult.Error ->
+        "Error executing $toolName: ${(result.result as TrailblazeToolResult.Error).errorMessage}"
     }
   }
 
